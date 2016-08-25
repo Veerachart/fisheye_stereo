@@ -45,9 +45,24 @@ public:
     StreamRectifier(int argc, char** argv)
       : it_(nh_)
     {
-        image_pub_ = it_.advertise("/cam_left/rectified_video", 1);
+        std::string camera = nh_.resolveName("camera");
+        if(camera == "/left"){
+            videoStreamAddress = std::string("rtsp://192.168.11.65/live2.sdp");
+            image_pub_ = it_.advertise("/cam_left/rectified_video", 1);
+        }
+        else if(camera == "/right" ){
+            videoStreamAddress = std::string("rtsp://192.168.11.79/live2.sdp");
+            image_pub_ = it_.advertise("/cam_right/rectified_video", 1);
+        }
+        else{
+            // Use default: left camera
+            ROS_WARN("Wrong assignment to left or right camera --- use configuration for left camera");
+            videoStreamAddress = std::string("rtsp://192.168.11.65/live2.sdp");
+            image_pub_ = it_.advertise("/cam_left/rectified_video", 1);
+        }
+        
         cv_ptr = cv_bridge::CvImagePtr(new cv_bridge::CvImage);
-        videoStreamAddress = std::string("rtsp://192.168.11.65/live2.sdp");
+        
         rect_size = 720;
         map_x = Mat(rect_size,rect_size,CV_32FC1);
         map_y = Mat(rect_size,rect_size,CV_32FC1);
@@ -110,8 +125,18 @@ public:
 };
 
 int main(int argc, char **argv){
-
-    ros::init(argc, argv, "testIPCam");
+    ros::init(argc, argv, "streamer",ros::init_options::AnonymousName);
+    std::string cam_arg = ros::names::remap("camera");
+    if (cam_arg == "camera") {
+        ROS_WARN("Selection 'camera' has not been remapped! Typical command-line usage:\n"
+             "\t$ rosrun fisheye_stereo stream camera:=<left or right>");
+        return -1;
+    }
+    else if ( (cam_arg != "/left") && (cam_arg != "/right") ){
+        ROS_WARN("Selection 'camera' has been incorrectly remapped! Typical command-line usage:\n"
+             "\t$ rosrun fisheye_stereo stream camera:=<left or right>");
+        return -1;
+    }
     ros::start();
     ros::Rate loop_rate(25);
     StreamRectifier streamer(argc, argv);
