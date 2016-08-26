@@ -11,7 +11,6 @@
 #include <math.h>
 #include <cxcore.h>
 #include <highgui.h>
-#include <stdio.h>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
 

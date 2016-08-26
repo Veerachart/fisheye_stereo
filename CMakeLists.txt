@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf
   tf_conversions
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -50,11 +51,10 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  Stereo_pixels.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -71,10 +71,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   geometry_msgs#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -109,6 +109,7 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES fisheye_stereo
 #  CATKIN_DEPENDS cv_bridge geometry_msgs image_transport roscpp rospy sensor_msg std_msgs tf tf_conversions
+  CATKIN_DEPENDS message_runtime
 #  DEPENDS system_lib
 )
 
@@ -136,6 +137,7 @@ include_directories(
 
 ## Declare a C++ executable
 add_executable(stream src/stream.cpp)
+add_executable(triangulate src/triangulate.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -145,6 +147,9 @@ add_executable(stream src/stream.cpp)
 target_link_libraries(stream
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
+)
+target_link_libraries(triangulate
+  ${catkin_LIBRARIES}
 )
 
 #############
