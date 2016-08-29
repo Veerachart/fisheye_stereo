@@ -138,6 +138,7 @@ include_directories(
 ## Declare a C++ executable
 add_executable(stream src/stream.cpp)
 add_executable(triangulate src/triangulate.cpp)
+add_executable(blimp_tracker src/blimp_detect.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -150,6 +151,10 @@ target_link_libraries(stream
 )
 target_link_libraries(triangulate
   ${catkin_LIBRARIES}
+)
+target_link_libraries(blimp_tracker
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 #############
