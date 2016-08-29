@@ -4,6 +4,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/imgproc/imgproc.hpp>     //make sure to include the relevant headerfiles
+#include <opencv2/imgproc/imgproc_c.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv/cv.h>
 #include <opencv/highgui.h>
@@ -23,7 +24,7 @@ const double PI = 3.141592653589793;
 class StreamRectifier{
     ros::NodeHandle nh_;
     image_transport::ImageTransport it_;
-    image_transport::Publisher image_pub_;
+    image_transport::Publisher image_pub_, raw_pub_;
     cv_bridge::CvImagePtr cv_ptr;
     sensor_msgs::ImagePtr msg;
     Mat frame;
@@ -48,6 +49,7 @@ public:
         if(camera == "/right"){
             videoStreamAddress = std::string("rtsp://192.168.11.65/live2.sdp");
             image_pub_ = it_.advertise("/cam_right/rectified_video", 1);
+            raw_pub_ = it_.advertise("/cam_right/raw_video", 1);
             R << 0.999669, 0.001851, -0.025645, -0.001851, 0.999998, 0.000024, 0.025645, -0.000024, 0.999671;
             coeffs[0] = 1.512327;
             coeffs[1] = 0.017717;
@@ -62,6 +64,7 @@ public:
         else if(camera == "/left" ){
             videoStreamAddress = std::string("rtsp://192.168.11.79/live2.sdp");
             image_pub_ = it_.advertise("/cam_left/rectified_video", 1);
+            raw_pub_ = it_.advertise("/cam_left/raw_video", 1);
             R << 0.999482, 0.028267, -0.015379, -0.028406, 0.999557, -0.008864, 0.015122, 0.009297, 0.999842;
             coeffs[0] = 1.499236;
             coeffs[1] = 0.045662;
@@ -78,6 +81,7 @@ public:
             ROS_WARN("Wrong assignment to left or right camera --- use configuration for left camera");
             videoStreamAddress = std::string("rtsp://192.168.11.79/live2.sdp");
             image_pub_ = it_.advertise("/cam_left/rectified_video", 1);
+            raw_pub_ = it_.advertise("/cam_left/raw_video", 1);
         }
         std::cout << ros::names::remap("show") << std::endl;
         if(ros::names::remap("show") == "/true")
@@ -141,6 +145,8 @@ public:
         
         msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", dst).toImageMsg();
         image_pub_.publish(msg);
+        msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame).toImageMsg();
+        raw_pub_.publish(msg);
         //double loop_time = (ros::Time::now() - begin).toSec();
         //ROS_INFO("%.6f", loop_time);
         if(show){
