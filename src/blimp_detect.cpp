@@ -56,9 +56,10 @@ class BlimpTracker {
     public:
         BlimpTracker()
             : it_(nh_){
-            ROS_INFO("Tracker created.");
-            image_pub_ = it_.advertise("/cam_left/blimp_image", 1);
-            image_sub_ = it_.subscribe("/cam_left/raw_video", 1, &BlimpTracker::imageCallback, this);
+            //ROS_INFO("Tracker created.");
+            std::string camera (nh_.resolveName("camera"), 1, 5);
+            image_pub_ = it_.advertise("/cam_"+camera+"/blimp_image", 1);
+            image_sub_ = it_.subscribe("/cam_"+camera+"/raw_video", 1, &BlimpTracker::imageCallback, this);
             
             center_pub_ = nh_.advertise<geometry_msgs::PointStamped>("/blimp_center", 1);
             is_bg_built = FALSE;
