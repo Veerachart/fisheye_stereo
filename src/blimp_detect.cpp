@@ -77,7 +77,7 @@ class BlimpTracker {
             bg_count = 0;
             bg_limit = 25;      // 1 s
             scale = 0.5;
-            area_threshold = 5000;
+            area_threshold = 2500;
         }
         
         void imageCallback (const sensor_msgs::Image::ConstPtr& msg) {
@@ -110,10 +110,10 @@ class BlimpTracker {
                 return;
             }
             absdiff(background, img_gray, foreground);
-            threshold(foreground, foreground, 25, 255, THRESH_BINARY);
+            threshold(foreground, foreground, 20, 255, THRESH_BINARY);
             morphologyEx(foreground, foreground, MORPH_OPEN, Mat::ones(3,3,CV_8U), Point(-1,-1), 1);
-            morphologyEx(foreground, foreground, MORPH_CLOSE, Mat::ones(3,3,CV_8U), Point(-1,-1), 3);
-            morphologyEx(foreground, foreground, MORPH_OPEN, Mat::ones(3,3,CV_8U), Point(-1,-1), 3);
+            morphologyEx(foreground, foreground, MORPH_CLOSE, Mat::ones(5,5,CV_8U), Point(-1,-1), 2);
+            morphologyEx(foreground, foreground, MORPH_OPEN, Mat::ones(5,5,CV_8U), Point(-1,-1), 2);
             
             vector<vector<Point> > contours;
             findContours(foreground.clone(), contours, CV_RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
@@ -122,48 +122,90 @@ class BlimpTracker {
                 //drawContours(cv_ptr->image, contours, 0, Scalar(128,255,255), 3, CV_AA);
                 for(int i = 0; i < contours.size(); i++){
                     if(contourArea(contours[i]) < area_threshold){        // Too small contour
-                        break;
+                        continue;
                     }
                     RotatedRect rect;
                     rect = minAreaRect(contours[i]);
                     Point2f rect_points[4];
                     rect.points(rect_points);
                     
-                    float angle;
-                    if(rect.size.width < rect.size.height)
-                        angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - 90.0 - rect.angle);
-                    else
-                        angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - rect.angle);
-                    if(abs(angle - 90) < 15){
-                        // Considered as blimp
-                        // Check area: Ellipse = pi*a*b, rectangle = (2a)*(2b)
-                        // Therefore Ellipse/rectangle = pi/4 --> 0.5-0.85
-                        double area = contourArea(Mat(contours[i]));
-                        double rectArea = rect.size.width*rect.size.height;
-                        if(area/rectArea < 0.5 || area/rectArea > 0.85){
-                            // May not be the blimp
-                            ROS_INFO("%.2f", area/rectArea);
-                            drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
-                            for(int j = 0; j < 4; j++)
-                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(255,255,255),1,8);
-                        }
-                        else{
+                    //Find saturation_mean
+                    float sat;
+                    //ros::Time begin = ros::Time::now();
+                    Rect roi = rect.boundingRect();
+                    Mat crop(cv_ptr->image, roi);
+                    Mat temp = Mat::zeros(cv_ptr->image.rows, cv_ptr->image.cols, CV_8U);
+                    drawContours(temp, contours, i, Scalar(255,255,255), CV_FILLED);
+                    Mat mask(temp, roi);
+                    Mat hsv;
+                    cvtColor(crop, hsv, CV_BGR2HSV);
+                    //cvtColor(cv_ptr->image, hsv, CV_BGR2HSV);
+                    //double loop_time = (ros::Time::now() - begin).toSec();
+                    //ROS_INFO("%.6f", loop_time);
+                    sat = mean(hsv, mask)[1];
+                    //std::cout << sat << std::endl;
+                    char text[50];
+                    sprintf(text, "%.2f", sat);
+                    
+                    double area = contourArea(Mat(contours[i]));
+                    double rectArea = rect.size.width*rect.size.height;
+                    
+                    if(rect.size.width/rect.size.height >= 0.85 && rect.size.width/rect.size.height <= 1.15){
+                        // Almost a circle --> close to the center of the image
+                        // --> fitted rectangle will probably have wrong angle
+                        if(sat <= 60 && area/rectArea > 0.5 && area/rectArea < 0.85){
+                            // Blimp has low saturation in HSV space and area = pi/4 = 0.785
                             drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
                             for(int j = 0; j < 4; j++)
                                 line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),2,8);
+                            //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,0,255),2);
+                        }
+                        else{
+                            drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
+                            for(int j = 0; j < 4; j++)
+                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(255,255,255),1,8);
+                            //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(255,255,255),2);
                         }
                     }
-                    else if (angle < 15){
-                        // Considered as standing human
-                        drawContours(cv_ptr->image, contours, i, Scalar(0,255,0), 3, CV_AA);        // Draw in green
-                        for(int j = 0; j < 4; j++)
-                            line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,255,0),2,8);
-                    }
                     else{
-                        // Unclassified // TODO
-                        drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
-                        for(int j = 0; j < 4; j++)
-                            line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(255,255,255),1,8);
+                        float angle;
+                        if(rect.size.width < rect.size.height)
+                            angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - 90.0 - rect.angle);
+                        else
+                            angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - rect.angle);
+                        if(abs(angle - 90) < 20){
+                            // Considered as blimp
+                            // Check area: Ellipse = pi*a*b, rectangle = (2a)*(2b)
+                            // Therefore Ellipse/rectangle = pi/4 --> 0.5-0.85
+                            if(area/rectArea < 0.5 || area/rectArea > 0.85 || sat > 60){
+                                // May not be the blimp
+                                //ROS_INFO("%.2f", area/rectArea);
+                                drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
+                                for(int j = 0; j < 4; j++)
+                                    line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(255,255,255),1,8);
+                                //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(255,255,255),2);
+                            }
+                            else{
+                                drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
+                                for(int j = 0; j < 4; j++)
+                                    line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),2,8);
+                                //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,0,255),2);
+                            }
+                        }
+                        else if (angle < 20){
+                            // Considered as standing human
+                            drawContours(cv_ptr->image, contours, i, Scalar(0,255,0), 3, CV_AA);        // Draw in green
+                            for(int j = 0; j < 4; j++)
+                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,255,0),2,8);
+                            //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,255,0),2);
+                        }
+                        else{
+                            // Unclassified // TODO
+                            drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
+                            for(int j = 0; j < 4; j++)
+                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(255,255,255),1,8);
+                            //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(255,255,255),2);
+                        }
                     }
                 }
             }
