@@ -12,8 +12,9 @@
 #include <highgui.h>
 #include <opencv2/opencv.hpp>
 #include "sensor_msgs/Image.h"
-#include "geometry_msgs/Point.h"
-#include "geometry_msgs/PointStamped.h"
+#include "geometry_msgs/Point32.h"
+#include "geometry_msgs/Polygon.h"
+#include "geometry_msgs/PolygonStamped.h"
 #include <Eigen/Core>
 #include <algorithm>
 
@@ -35,8 +36,6 @@ class BlimpTracker {
     image_transport::Subscriber image_sub_;
     image_transport::Publisher image_pub_;
     
-    geometry_msgs::PointStamped center_;
-    
     ros::Publisher center_pub_;
     
     bool is_bg_built;
@@ -56,6 +55,10 @@ class BlimpTracker {
     
     double area_threshold;
     
+    geometry_msgs::PolygonStamped polygon;
+    geometry_msgs::Polygon detected_points;
+    geometry_msgs::Point32 point;
+    
     public:
         BlimpTracker()
             : it_(nh_){
@@ -72,7 +75,7 @@ class BlimpTracker {
             image_pub_ = it_.advertise("/cam_"+camera+"/blimp_image", 1);
             image_sub_ = it_.subscribe("/cam_"+camera+"/raw_video", 1, &BlimpTracker::imageCallback, this);
             
-            center_pub_ = nh_.advertise<geometry_msgs::PointStamped>("/blimp_center", 1);
+            center_pub_ = nh_.advertise<geometry_msgs::PolygonStamped>("/cam_"+camera+"/blimp_center", 1);
             is_bg_built = FALSE;
             bg_count = 0;
             bg_limit = 25;      // 1 s
@@ -82,6 +85,7 @@ class BlimpTracker {
         
         void imageCallback (const sensor_msgs::Image::ConstPtr& msg) {
             ros::Time begin = ros::Time::now();
+            detected_points = geometry_msgs::Polygon();
             cv_bridge::CvImagePtr cv_ptr;
             try
             {
@@ -159,6 +163,9 @@ class BlimpTracker {
                             for(int j = 0; j < 4; j++)
                                 line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),2,8);
                             //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,0,255),2);
+                            point.x = rect.center.x;
+                            point.y = rect.center.y;
+                            detected_points.points.push_back(point);
                         }
                         else{
                             drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
@@ -190,6 +197,9 @@ class BlimpTracker {
                                 for(int j = 0; j < 4; j++)
                                     line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),2,8);
                                 //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,0,255),2);
+                                point.x = rect.center.x;
+                                point.y = rect.center.y;
+                                detected_points.points.push_back(point);
                             }
                         }
                         else if (angle < 20){
@@ -209,11 +219,14 @@ class BlimpTracker {
                     }
                 }
             }
-            resize(foreground, show, Size(), scale, scale);
+            //resize(foreground, show, Size(), scale, scale);
             resize(cv_ptr->image, contour_show, Size(), scale, scale);
-            imshow("Foreground", show);
+            //imshow("Foreground", show);
             imshow("contours", contour_show);
             image_pub_.publish(cv_ptr->toImageMsg());
+            polygon.header.stamp = ros::Time::now();
+            polygon.polygon = detected_points;
+            center_pub_.publish(polygon);
             double loop_time = (ros::Time::now() - begin).toSec();
             ROS_INFO("%.6f", loop_time);
             waitKey(1);

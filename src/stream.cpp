@@ -46,11 +46,11 @@ public:
       : it_(nh_)
     {
         std::string camera = nh_.resolveName("camera");
-        if(camera == "/right"){
+        if(camera == "/left"){
             videoStreamAddress = std::string("rtsp://192.168.11.65/live2.sdp");
-            image_pub_ = it_.advertise("/cam_right/rectified_video", 1);
-            raw_pub_ = it_.advertise("/cam_right/raw_video", 1);
-            R << 0.999669, 0.001851, -0.025645, -0.001851, 0.999998, 0.000024, 0.025645, -0.000024, 0.999671;
+            image_pub_ = it_.advertise("/cam_left/rectified_video", 1);
+            raw_pub_ = it_.advertise("/cam_left/raw_video", 1);
+            R << 0.998937, 0.035785, -0.030509, -0.035785, 0.999359, 0.000546, 0.030509, 0.000546, 0.999534;
             coeffs[0] = 1.512327;
             coeffs[1] = 0.017717;
             coeffs[2] = -0.007934;
@@ -61,11 +61,11 @@ public:
             u0 = 761.98;
             v0 = 772.98;
         }
-        else if(camera == "/left" ){
+        else if(camera == "/right" ){
             videoStreamAddress = std::string("rtsp://192.168.11.79/live2.sdp");
-            image_pub_ = it_.advertise("/cam_left/rectified_video", 1);
-            raw_pub_ = it_.advertise("/cam_left/raw_video", 1);
-            R << 0.999482, 0.028267, -0.015379, -0.028406, 0.999557, -0.008864, 0.015122, 0.009297, 0.999842;
+            image_pub_ = it_.advertise("/cam_right/rectified_video", 1);
+            raw_pub_ = it_.advertise("/cam_right/raw_video", 1);
+            R << 0.999744, 0.019123, -0.012076, -0.019195, 0.999798, -0.005883, 0.011961, 0.006114, 0.999910;
             coeffs[0] = 1.499236;
             coeffs[1] = 0.045662;
             coeffs[2] = -0.033468;
@@ -134,17 +134,17 @@ public:
         if( !frame.data )
           { return; }
         
-        remap(frame, dst, map_x, map_y, CV_INTER_LINEAR, BORDER_TRANSPARENT, Scalar(0,0,0));
+        //remap(frame, dst, map_x, map_y, CV_INTER_LINEAR, BORDER_TRANSPARENT, Scalar(0,0,0));
         
-        if(draw_line){
-            for (int ang = 0; ang < rect_size; ang = ang+rect_size/12){
-                line(dst, Point(0,ang), Point(rect_size,ang),CV_RGB(255,255,255));
-                line(dst, Point(ang,0), Point(ang,rect_size),CV_RGB(255,255,255));
-            }
-        }
+        //if(draw_line){
+        //    for (int ang = 0; ang < rect_size; ang = ang+rect_size/12){
+        //        line(dst, Point(0,ang), Point(rect_size,ang),CV_RGB(255,255,255));
+        //        line(dst, Point(ang,0), Point(ang,rect_size),CV_RGB(255,255,255));
+        //    }
+        //}
         
-        msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", dst).toImageMsg();
-        image_pub_.publish(msg);
+        //msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", dst).toImageMsg();
+        //image_pub_.publish(msg);
         msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", frame).toImageMsg();
         raw_pub_.publish(msg);
         //double loop_time = (ros::Time::now() - begin).toSec();
@@ -178,7 +178,7 @@ int main(int argc, char **argv){
         return -1;
     }
     ros::start();
-    ros::Rate loop_rate(25);
+    ros::Rate loop_rate(15);
     StreamRectifier * streamer = new (std::nothrow) StreamRectifier;
 
     while(ros::ok()) {
