@@ -49,15 +49,26 @@ class BlimpTracker {
     Mat temp;
     
     Mat show;
-    Mat bg_show;
     Mat contour_show;
     float scale;
+    
+    double u0, v0;
+    
+    double area_threshold;
     
     public:
         BlimpTracker()
             : it_(nh_){
             //ROS_INFO("Tracker created.");
             std::string camera (nh_.resolveName("camera"), 1, 5);
+            if(camera == "left"){
+                u0 = 761.98;
+                v0 = 772.98;
+            }
+            else if(camera == "right"){
+                u0 = 760.76;
+                v0 = 770.55;
+            }
             image_pub_ = it_.advertise("/cam_"+camera+"/blimp_image", 1);
             image_sub_ = it_.subscribe("/cam_"+camera+"/raw_video", 1, &BlimpTracker::imageCallback, this);
             
@@ -66,6 +77,7 @@ class BlimpTracker {
             bg_count = 0;
             bg_limit = 25;      // 1 s
             scale = 0.5;
+            area_threshold = 5000;
         }
         
         void imageCallback (const sensor_msgs::Image::ConstPtr& msg) {
@@ -104,22 +116,62 @@ class BlimpTracker {
             morphologyEx(foreground, foreground, MORPH_OPEN, Mat::ones(3,3,CV_8U), Point(-1,-1), 3);
             
             vector<vector<Point> > contours;
-            findContours(foreground, contours, CV_RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
-            if(contours.size() > 1){
+            findContours(foreground.clone(), contours, CV_RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
+            if(contours.size() > 0){
                 std::sort(contours.begin(), contours.end(), compareContourAreas);
                 //drawContours(cv_ptr->image, contours, 0, Scalar(128,255,255), 3, CV_AA);
-                //drawContours(cv_ptr->image, contours, 1, Scalar(255,0,0), 3, CV_AA);
+                for(int i = 0; i < contours.size(); i++){
+                    if(contourArea(contours[i]) < area_threshold){        // Too small contour
+                        break;
+                    }
+                    RotatedRect rect;
+                    rect = minAreaRect(contours[i]);
+                    Point2f rect_points[4];
+                    rect.points(rect_points);
+                    
+                    float angle;
+                    if(rect.size.width < rect.size.height)
+                        angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - 90.0 - rect.angle);
+                    else
+                        angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - rect.angle);
+                    if(abs(angle - 90) < 15){
+                        // Considered as blimp
+                        // Check area: Ellipse = pi*a*b, rectangle = (2a)*(2b)
+                        // Therefore Ellipse/rectangle = pi/4 --> 0.5-0.85
+                        double area = contourArea(Mat(contours[i]));
+                        double rectArea = rect.size.width*rect.size.height;
+                        if(area/rectArea < 0.5 || area/rectArea > 0.85){
+                            // May not be the blimp
+                            ROS_INFO("%.2f", area/rectArea);
+                            drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
+                            for(int j = 0; j < 4; j++)
+                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(255,255,255),1,8);
+                        }
+                        else{
+                            drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
+                            for(int j = 0; j < 4; j++)
+                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),2,8);
+                        }
+                    }
+                    else if (angle < 15){
+                        // Considered as standing human
+                        drawContours(cv_ptr->image, contours, i, Scalar(0,255,0), 3, CV_AA);        // Draw in green
+                        for(int j = 0; j < 4; j++)
+                            line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,255,0),2,8);
+                    }
+                    else{
+                        // Unclassified // TODO
+                        drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
+                        for(int j = 0; j < 4; j++)
+                            line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(255,255,255),1,8);
+                    }
+                }
             }
-            else if (contours.size()){
-                // Only one
-                //drawContours(cv_ptr->image, contours, -1, Scalar(128,255,255), 3, CV_AA);
-            }
-            //resize(foreground, show, Size(), scale, scale);
-            //resize(background, bg_show, Size(), scale, scale);
-            //resize(cv_ptr->image, contour_show, Size(), scale, scale);
-            //imshow("Background", bg_show);
-            //imshow("Foreground", show);
-            //imshow("contours", contour_show);
+            resize(foreground, show, Size(), scale, scale);
+            resize(cv_ptr->image, contour_show, Size(), scale, scale);
+            imshow("Foreground", show);
+            imshow("contours", contour_show);
+            image_pub_.publish(cv_ptr->toImageMsg());
             double loop_time = (ros::Time::now() - begin).toSec();
             ROS_INFO("%.6f", loop_time);
             waitKey(1);
