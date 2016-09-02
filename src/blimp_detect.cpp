@@ -137,6 +137,10 @@ class BlimpTracker {
                     float sat;
                     //ros::Time begin = ros::Time::now();
                     Rect roi = rect.boundingRect();
+                    roi.x = max(roi.x, 0);
+                    roi.y = max(roi.y, 0);
+                    roi.width = min(cv_ptr->image.cols - roi.x, roi.width);
+                    roi.height = min(cv_ptr->image.rows - roi.y, roi.height);
                     Mat crop(cv_ptr->image, roi);
                     Mat temp = Mat::zeros(cv_ptr->image.rows, cv_ptr->image.cols, CV_8U);
                     drawContours(temp, contours, i, Scalar(255,255,255), CV_FILLED);
@@ -220,9 +224,9 @@ class BlimpTracker {
                 }
             }
             //resize(foreground, show, Size(), scale, scale);
-            resize(cv_ptr->image, contour_show, Size(), scale, scale);
+            //resize(cv_ptr->image, contour_show, Size(), scale, scale);
             //imshow("Foreground", show);
-            imshow("contours", contour_show);
+            //imshow("contours", contour_show);
             image_pub_.publish(cv_ptr->toImageMsg());
             polygon.header.stamp = ros::Time::now();
             polygon.polygon = detected_points;
