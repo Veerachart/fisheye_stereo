@@ -153,73 +153,43 @@ class BlimpTracker {
                     sat = mean(hsv, mask)[1];
                     //std::cout << sat << std::endl;
                     char text[50];
-                    sprintf(text, "%.2f", sat);
                     
                     double area = contourArea(Mat(contours[i]));
                     double rectArea = rect.size.width*rect.size.height;
                     
+                    double membershipValue;
+                    
                     if(rect.size.width/rect.size.height >= 0.85 && rect.size.width/rect.size.height <= 1.15){
                         // Almost a circle --> close to the center of the image
                         // --> fitted rectangle will probably have wrong angle
-                        if(sat <= 60 && area/rectArea > 0.5 && area/rectArea < 0.85){
-                            // Blimp has low saturation in HSV space and area = pi/4 = 0.785
-                            drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
-                            for(int j = 0; j < 4; j++)
-                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),2,8);
-                            //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,0,255),2);
-                            point.x = rect.center.x;
-                            point.y = rect.center.y;
-                            detected_points.points.push_back(point);
-                        }
-                        else{
-                            drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
-                            for(int j = 0; j < 4; j++)
-                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(255,255,255),1,8);
-                            //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(255,255,255),2);
-                        }
+                        membershipValue = areaFunction(area/rectArea) * saturationFunction(sat);
+                        sprintf(text, "%.2lf", membershipValue);
+                        drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
+                        for(int j = 0; j < 4; j++)
+                            line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),2,8);
+                        putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,0,255),2);
+                        point.x = rect.center.x;
+                        point.y = rect.center.y;
+                        point.z = membershipValue;
+                        detected_points.points.push_back(point);
                     }
                     else{
-                        float angle;
+                        double angle;
                         if(rect.size.width < rect.size.height)
                             angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - 90.0 - rect.angle);
                         else
                             angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - rect.angle);
-                        if(abs(angle - 90) < 20){
-                            // Considered as blimp
-                            // Check area: Ellipse = pi*a*b, rectangle = (2a)*(2b)
-                            // Therefore Ellipse/rectangle = pi/4 --> 0.5-0.85
-                            if(area/rectArea < 0.5 || area/rectArea > 0.85 || sat > 60){
-                                // May not be the blimp
-                                //ROS_INFO("%.2f", area/rectArea);
-                                drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
-                                for(int j = 0; j < 4; j++)
-                                    line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(255,255,255),1,8);
-                                //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(255,255,255),2);
-                            }
-                            else{
-                                drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
-                                for(int j = 0; j < 4; j++)
-                                    line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),2,8);
-                                //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,0,255),2);
-                                point.x = rect.center.x;
-                                point.y = rect.center.y;
-                                detected_points.points.push_back(point);
-                            }
-                        }
-                        else if (angle < 20){
-                            // Considered as standing human
-                            drawContours(cv_ptr->image, contours, i, Scalar(0,255,0), 3, CV_AA);        // Draw in green
-                            for(int j = 0; j < 4; j++)
-                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,255,0),2,8);
-                            //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,255,0),2);
-                        }
-                        else{
-                            // Unclassified // TODO
-                            drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
-                            for(int j = 0; j < 4; j++)
-                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(255,255,255),1,8);
-                            //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(255,255,255),2);
-                        }
+                        membershipValue = angleFunction(angle) * areaFunction(area/rectArea) * saturationFunction(sat);
+                        sprintf(text, "%.2lf", membershipValue);
+                        sprintf(text, "%.2lf", membershipValue);
+                        drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
+                        for(int j = 0; j < 4; j++)
+                            line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),1,8);
+                        putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,0,255),2);
+                        point.x = rect.center.x;
+                        point.y = rect.center.y;
+                        point.z = membershipValue;
+                        detected_points.points.push_back(point);
                     }
                 }
             }
@@ -234,6 +204,23 @@ class BlimpTracker {
             double loop_time = (ros::Time::now() - begin).toSec();
             ROS_INFO("%.6f", loop_time);
             waitKey(1);
+        }
+
+    private:
+        double angleFunction(double angle){
+            return std::max(1.0 - abs(angle-90.0)/20.0, 0.0);
+        }
+        double areaFunction(double areaRatio){
+            if(areaRatio < 0.7854)          //pi/4
+                return std::max((areaRatio-0.5)/0.2854,0.0);
+            else
+                return std::max((0.85-areaRatio)/0.0646,0.0);
+        }
+        double saturationFunction(double sat){
+            if(sat <= 40)
+                return 1;
+            else
+                return std::max((sat-40.0)/20.0,0.0);
         }
                 
 };
