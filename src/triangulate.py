@@ -6,7 +6,13 @@ import cv2
 from geometry_msgs.msg import PolygonStamped, Point32
 import message_filters
 import tf
+import csv
+import time
+import sys,os
+pathname = os.path.dirname(os.path.dirname(sys.argv[0]))
 
+global start, x_out, y_out, z_out
+start = 0
 coeffs1 = [-0.001235, 0, 0.001223, 0, -0.007934, 0, 0.017717, 0, 1.512327]
 coeffs2 = [-0.001877, 0, 0.010240, 0, -0.033468, 0, 0.045662, 0, 1.499236]
 R1 = np.array([[0.998937,  0.035785, -0.030509], [-0.035785,  0.999359,  0.000546], [0.030509,  0.000546,  0.999534]])
@@ -14,9 +20,23 @@ R2 = np.array([[0.999744,  0.019123, -0.012076], [-0.019195,  0.999798, -0.00588
 mu1 = 321.3991;     mv1 = 321.4652;     u01 = 761.98;       v01 = 772.98;
 mu2 = 321.3305;     mv2 = 321.2910;     u02 = 760.76;       v02 = 770.55;
 
+if not os.path.isdir(pathname+"/logdata"):
+    os.makedirs(pathname+"/logdata")
+file_name = pathname+"/logdata/"+time.strftime("%Y%m%d-%H%M")+"_blimp.csv"
+f = open(file_name, 'wb')
+writer = csv.writer(f)
+writer.writerow("time,x,y,z".split(','))
+x_out = 0
+y_out = 0
+z_out = 0
+
 def triangulateCallback(p_left, p_right):
+    global start, x_out, y_out, z_out
     if len(p_left.polygon.points) == 0 or len(p_right.polygon.points) == 0:
         return
+    t = p_left.header.stamp.to_time()
+    if start == 0:
+        start = t
     psi_beta_list_left = []
     psi_beta_list_right= []
     for point in p_left.polygon.points:
@@ -71,8 +91,11 @@ def triangulateCallback(p_left, p_right):
         for (psi2,beta2) in psi_beta_list_right:
             if abs(beta1-beta2) < 0.04:     # On the same epipolar line
                 rho = baseline*np.cos(psi2)/np.sin(psi1-psi2)
+                x_out = rho*np.sin(psi1)
+                y_out = rho*np.cos(psi1)*np.sin(beta1)
+                z_out = rho*np.cos(psi1)*np.cos(beta1)
                 
-                broadcaster.sendTransform((rho*np.sin(psi1), rho*np.cos(psi1)*np.sin(beta1), rho*np.cos(psi1)*np.cos(beta1)),
+                broadcaster.sendTransform((x_out, y_out, z_out),
                                           tf.transformations.quaternion_from_euler(0,0,0),
                                           rospy.Time.now(),
                                           '/blimp',
@@ -80,6 +103,12 @@ def triangulateCallback(p_left, p_right):
                 break
         else:
             break
+            
+    try:
+        data = "%.9f,%.3f,%.3f,%.3f" % (t-start, x_out, y_out, z_out)
+        writer.writerow(data.split(','))
+    except csv.Error as e:
+        sys.exit('File %s, line %d: %s' % (file_name, writer.line_num, e))
 
 
 
@@ -92,4 +121,6 @@ if __name__ == '__main__':
     sync = message_filters.ApproximateTimeSynchronizer([p1_sub, p2_sub], 10, 1)
     sync.registerCallback(triangulateCallback)
     broadcaster = tf.TransformBroadcaster()
+    
+    
     rospy.spin()
