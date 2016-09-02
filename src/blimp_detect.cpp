@@ -188,7 +188,7 @@ class BlimpTracker {
                         putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,0,255),2);
                         point.x = rect.center.x;
                         point.y = rect.center.y;
-                        point.z = membershipValue;
+                        point.z = (float)membershipValue;
                         detected_points.points.push_back(point);
                     }
                 }
@@ -220,7 +220,7 @@ class BlimpTracker {
             if(sat <= 40)
                 return 1;
             else
-                return std::max((sat-40.0)/20.0,0.0);
+                return std::max(1.0-(sat-40.0)/20.0,0.0);
         }
                 
 };
