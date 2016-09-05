@@ -24,9 +24,9 @@ mu2 = 321.3305;     mv2 = 321.2910;     u02 = 760.76;       v02 = 770.55;
 if not os.path.isdir(pathname+"/logdata"):
     os.makedirs(pathname+"/logdata")
 file_name = pathname+"/logdata/"+time.strftime("%Y%m%d-%H%M")+"_blimp.csv"
-#f = open(file_name, 'wb')
-#writer = csv.writer(f)
-#writer.writerow("time,x,y,z".split(','))
+f = open(file_name, 'wb')
+writer = csv.writer(f)
+writer.writerow("time,x,y,z".split(','))
 x_out = 0
 y_out = 0
 z_out = 0
@@ -87,9 +87,9 @@ def triangulateCallback(p_left, p_right):
         psi = np.arcsin(u_cam[0,0])
         beta = np.arctan2(u_cam[1,0],u_cam[2,0])
         psi_beta_list_right.append((psi,beta,point.z))
-        
-    sorted(psi_beta_list_left, key=itemgetter(2), reverse=True)
-    sorted(psi_beta_list_right, key=itemgetter(2), reverse=True)
+
+    psi_beta_list_left = sorted(psi_beta_list_left, key=itemgetter(2), reverse=True)
+    psi_beta_list_right = sorted(psi_beta_list_right, key=itemgetter(2), reverse=True)
     
     i=0
     j=0
@@ -97,7 +97,11 @@ def triangulateCallback(p_left, p_right):
     while not found:
         z1=psi_beta_list_left[i][2]
         z2=psi_beta_list_right[j][2]
+        if z1 == 0 and z2 == 0:
+            rospy.loginfo("No match")
+            break       # 0 should not be matched with zero, just end
         if z1 < z2:     # right camera has better membership value
+            #rospy.loginfo("j = %d, %f", j, z2)
             (psi2,beta2,z2) = psi_beta_list_right[j]
             for (psi1,beta1,z1) in psi_beta_list_left:
                 if abs(beta1-beta2) < 0.08:     # On the same epipolar line
@@ -118,9 +122,10 @@ def triangulateCallback(p_left, p_right):
                 # Arriving here means there is no match, increase index of right camera
                 j += 1
         else:           # left camera has better membership value
+            #rospy.loginfo("i = %d, %f", i, z1)
             (psi1,beta1,z1) = psi_beta_list_left[i]
             for (psi2,beta2,z2) in psi_beta_list_right:
-                if abs(beta1-beta2) < 0.08:     # On the same epipolar line
+                if abs(beta1-beta2) < 0.06:     # On the same epipolar line
                     rho = baseline*np.cos(psi2)/np.sin(psi1-psi2)
                     x_out = rho*np.sin(psi1)
                     y_out = rho*np.cos(psi1)*np.sin(beta1)
@@ -141,11 +146,11 @@ def triangulateCallback(p_left, p_right):
             rospy.loginfo("No match")
             break
             
-#    try:
-#        data = "%.9f,%.3f,%.3f,%.3f" % (t-start, x_out, y_out, z_out)
-#        writer.writerow(data.split(','))
-#    except csv.Error as e:
-#        sys.exit('File %s, line %d: %s' % (file_name, writer.line_num, e))
+    try:
+        data = "%.9f,%.3f,%.3f,%.3f" % (t-start, x_out, y_out, z_out)
+        writer.writerow(data.split(','))
+    except csv.Error as e:
+        sys.exit('File %s, line %d: %s' % (file_name, writer.line_num, e))
 
 
 
