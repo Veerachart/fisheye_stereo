@@ -122,7 +122,7 @@ class BlimpTracker {
             vector<vector<Point> > contours;
             findContours(foreground.clone(), contours, CV_RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
             if(contours.size() > 0){
-                std::sort(contours.begin(), contours.end(), compareContourAreas);
+                //std::sort(contours.begin(), contours.end(), compareContourAreas);
                 //drawContours(cv_ptr->image, contours, 0, Scalar(128,255,255), 3, CV_AA);
                 for(int i = 0; i < contours.size(); i++){
                     if(contourArea(contours[i]) < area_threshold){        // Too small contour
@@ -130,8 +130,8 @@ class BlimpTracker {
                     }
                     RotatedRect rect;
                     rect = minAreaRect(contours[i]);
-                    Point2f rect_points[4];
-                    rect.points(rect_points);
+                    //Point2f rect_points[4];
+                    //rect.points(rect_points);
                     
                     //Find saturation_mean
                     float sat;
@@ -151,6 +151,7 @@ class BlimpTracker {
                     //double loop_time = (ros::Time::now() - begin).toSec();
                     //ROS_INFO("%.6f", loop_time);
                     sat = mean(hsv, mask)[1];
+//                    RotatedRect ellipseRect = fitEllipse(contours[i]);
                     //std::cout << sat << std::endl;
                     char text[50];
                     
@@ -162,15 +163,15 @@ class BlimpTracker {
                     if(rect.size.width/rect.size.height >= 0.85 && rect.size.width/rect.size.height <= 1.15){
                         // Almost a circle --> close to the center of the image
                         // --> fitted rectangle will probably have wrong angle
+                        drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
+                        Moments m = moments(contours[i]);
                         membershipValue = areaFunction(area/rectArea) * saturationFunction(sat);
                         sprintf(text, "%.2lf", membershipValue);
-                        drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
-                        for(int j = 0; j < 4; j++)
-                            line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),2,8);
-                        putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,0,255),2);
-                        point.x = rect.center.x;
-                        point.y = rect.center.y;
-                        point.z = membershipValue;
+                        putText(cv_ptr->image, text, Point(m.m10/m.m00, m.m01/m.m00), FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255),2);
+                        circle(cv_ptr->image, Point(m.m10/m.m00, m.m01/m.m00), 3, Scalar(0,255,0), -1);
+                        point.x = m.m10/m.m00;
+                        point.y = m.m01/m.m00;
+                        point.z = (float)membershipValue;
                         detected_points.points.push_back(point);
                     }
                     else{
@@ -179,18 +180,37 @@ class BlimpTracker {
                             angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - 90.0 - rect.angle);
                         else
                             angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - rect.angle);
+                        drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
+                        Moments m = moments(contours[i]);
                         membershipValue = angleFunction(angle) * areaFunction(area/rectArea) * saturationFunction(sat);
                         sprintf(text, "%.2lf", membershipValue);
-                        sprintf(text, "%.2lf", membershipValue);
-                        drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
-                        for(int j = 0; j < 4; j++)
-                            line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),1,8);
-                        putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,0,255),2);
-                        point.x = rect.center.x;
-                        point.y = rect.center.y;
+                        putText(cv_ptr->image, text, Point(m.m10/m.m00, m.m01/m.m00), FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255),2);
+                        circle(cv_ptr->image, Point(m.m10/m.m00, m.m01/m.m00), 3, Scalar(0,255,0), -1);
+                        point.x = m.m10/m.m00;
+                        point.y = m.m01/m.m00;
                         point.z = (float)membershipValue;
                         detected_points.points.push_back(point);
                     }
+                    
+/*                    if(ellipseRect.size.width/ellipseRect.size.height >= 0.85 && ellipseRect.size.width/ellipseRect.size.height <= 1.15){
+                        membershipValue = areaFunction(area/(ellipseRect.size.width*ellipseRect.size.height)) * saturationFunction(sat);
+                        sprintf(text, "%.2lf", membershipValue);
+                        putText(cv_ptr->image, text, ellipseRect.center, FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255),2);
+                        ellipse(cv_ptr->image, ellipseRect, Scalar(255,255,255),2);
+                        circle(cv_ptr->image, ellipseRect.center, 3, Scalar(255,255,255), -1);
+                    }
+                    else{
+                        double angle;
+                        if(ellipseRect.size.width < ellipseRect.size.height)
+                            angle = abs(atan2(ellipseRect.center.y-v0, ellipseRect.center.x-u0)*180.0/PI - 90.0 - ellipseRect.angle);
+                        else
+                            angle = abs(atan2(ellipseRect.center.y-v0, ellipseRect.center.x-u0)*180.0/PI - ellipseRect.angle);
+                        membershipValue = angleFunction(angle) * areaFunction(area/(ellipseRect.size.width*ellipseRect.size.height)) * saturationFunction(sat);
+                        sprintf(text, "%.2lf", membershipValue);
+                        putText(cv_ptr->image, text, ellipseRect.center, FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255),2);
+                        ellipse(cv_ptr->image, ellipseRect, Scalar(255,255,255),2);
+                        circle(cv_ptr->image, ellipseRect.center, 3, Scalar(255,255,255), -1);
+                    }*/
                 }
             }
             //resize(foreground, show, Size(), scale, scale);
@@ -203,7 +223,7 @@ class BlimpTracker {
             center_pub_.publish(polygon);
             double loop_time = (ros::Time::now() - begin).toSec();
             ROS_INFO("%.6f", loop_time);
-            waitKey(1);
+            //waitKey(1);
         }
 
     private:
