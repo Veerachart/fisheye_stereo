@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+
+<launch>
+    <node name="tracker_left" pkg="fisheye_stereo" type="blimp_tracker" output="screen">
+        <remap from="camera" to="left"/>
+    </node>
+    <node name="tracker_right" pkg="fisheye_stereo" type="blimp_tracker" output="screen">
+        <remap from="camera" to="right"/>
+    </node>
+    <node name="triangulate" pkg="fisheye_stereo" type="triangulate.py" output="screen"> </node>
+</launch>

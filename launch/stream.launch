@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+
+<launch>
+    <node name="streamer_left" pkg="fisheye_stereo" type="stream" output="screen">
+        <remap from="camera" to="left"/>
+        <remap from="show" to="false"/>
+    </node>
+    <node name="streamer_right" pkg="fisheye_stereo" type="stream" output="screen">
+        <remap from="camera" to="right"/>
+        <remap from="show" to="false"/>
+    </node>
+</launch>
