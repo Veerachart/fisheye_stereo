@@ -122,7 +122,7 @@ class BlimpTracker {
             vector<vector<Point> > contours;
             findContours(foreground.clone(), contours, CV_RETR_EXTERNAL, CHAIN_APPROX_SIMPLE);
             if(contours.size() > 0){
-                std::sort(contours.begin(), contours.end(), compareContourAreas);
+                //std::sort(contours.begin(), contours.end(), compareContourAreas);
                 //drawContours(cv_ptr->image, contours, 0, Scalar(128,255,255), 3, CV_AA);
                 for(int i = 0; i < contours.size(); i++){
                     if(contourArea(contours[i]) < area_threshold){        // Too small contour
@@ -130,9 +130,7 @@ class BlimpTracker {
                     }
                     RotatedRect rect;
                     rect = minAreaRect(contours[i]);
-                    Point2f rect_points[4];
-                    rect.points(rect_points);
-                    
+                                        
                     //Find saturation_mean
                     float sat;
                     //ros::Time begin = ros::Time::now();
@@ -152,8 +150,8 @@ class BlimpTracker {
                     //ROS_INFO("%.6f", loop_time);
                     sat = mean(hsv, mask)[1];
                     //std::cout << sat << std::endl;
-                    char text[50];
-                    sprintf(text, "%.2f", sat);
+                    //char text[50];
+                    //sprintf(text, "%.2f", sat);
                     
                     double area = contourArea(Mat(contours[i]));
                     double rectArea = rect.size.width*rect.size.height;
@@ -164,19 +162,19 @@ class BlimpTracker {
                         if(sat <= 60 && area/rectArea > 0.5 && area/rectArea < 0.85){
                             // Blimp has low saturation in HSV space and area = pi/4 = 0.785
                             drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
-                            for(int j = 0; j < 4; j++)
-                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),2,8);
+                            
                             //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,0,255),2);
-                            point.x = rect.center.x;
-                            point.y = rect.center.y;
+                            Moments m = moments(contours[i]);
+                            circle(cv_ptr->image, Point(m.m10/m.m00, m.m01/m.m00), 3, Scalar(0,255,0), -1);
+                            point.x = m.m10/m.m00;
+                            point.y = m.m01/m.m00;
                             detected_points.points.push_back(point);
                         }
-                        else{
-                            drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
-                            for(int j = 0; j < 4; j++)
-                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(255,255,255),1,8);
+                        //else{
+                            //drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
+                            
                             //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(255,255,255),2);
-                        }
+                        //}
                     }
                     else{
                         float angle;
@@ -191,35 +189,32 @@ class BlimpTracker {
                             if(area/rectArea < 0.5 || area/rectArea > 0.85 || sat > 60){
                                 // May not be the blimp
                                 //ROS_INFO("%.2f", area/rectArea);
-                                drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
-                                for(int j = 0; j < 4; j++)
-                                    line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(255,255,255),1,8);
+                                
                                 //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(255,255,255),2);
                             }
                             else{
                                 drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
-                                for(int j = 0; j < 4; j++)
-                                    line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),2,8);
+                                
                                 //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,0,255),2);
-                                point.x = rect.center.x;
-                                point.y = rect.center.y;
+                                Moments m = moments(contours[i]);
+                                circle(cv_ptr->image, Point(m.m10/m.m00, m.m01/m.m00), 3, Scalar(0,0,255), -1);
+                                point.x = m.m10/m.m00;
+                                point.y = m.m01/m.m00;
                                 detected_points.points.push_back(point);
                             }
                         }
-                        else if (angle < 20){
+                        //else if (angle < 20){
                             // Considered as standing human
-                            drawContours(cv_ptr->image, contours, i, Scalar(0,255,0), 3, CV_AA);        // Draw in green
-                            for(int j = 0; j < 4; j++)
-                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,255,0),2,8);
+                            //drawContours(cv_ptr->image, contours, i, Scalar(0,255,0), 3, CV_AA);        // Draw in green
+                            
                             //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(0,255,0),2);
-                        }
-                        else{
+                        //}
+                        //else{
                             // Unclassified // TODO
-                            drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
-                            for(int j = 0; j < 4; j++)
-                                line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(255,255,255),1,8);
+                            //drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
+                            
                             //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(255,255,255),2);
-                        }
+                        //}
                     }
                 }
             }
