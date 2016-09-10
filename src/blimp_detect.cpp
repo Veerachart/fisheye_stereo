@@ -168,13 +168,19 @@ class BlimpTracker {
                             circle(cv_ptr->image, Point(m.m10/m.m00, m.m01/m.m00), 3, Scalar(0,255,0), -1);
                             point.x = m.m10/m.m00;
                             point.y = m.m01/m.m00;
+                            point.z = 1.0;
                             detected_points.points.push_back(point);
                         }
-                        //else{
-                            //drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
-                            
+                        else{
+                            drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 1, CV_AA);        // Draw in white
+                            Moments m = moments(contours[i]);
+                            circle(cv_ptr->image, Point(m.m10/m.m00, m.m01/m.m00), 3, Scalar(0,255,0), -1);
+                            point.x = m.m10/m.m00;
+                            point.y = m.m01/m.m00;
+                            point.z = 0.0;
+                            detected_points.points.push_back(point);
                             //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(255,255,255),2);
-                        //}
+                        }
                     }
                     else{
                         float angle;
@@ -189,7 +195,13 @@ class BlimpTracker {
                             if(area/rectArea < 0.5 || area/rectArea > 0.85 || sat > 60){
                                 // May not be the blimp
                                 //ROS_INFO("%.2f", area/rectArea);
-                                
+                                drawContours(cv_ptr->image, contours, i, Scalar(255,255,255), 3, CV_AA);
+                                Moments m = moments(contours[i]);
+                                circle(cv_ptr->image, Point(m.m10/m.m00, m.m01/m.m00), 3, Scalar(0,0,255), -1);
+                                point.x = m.m10/m.m00;
+                                point.y = m.m01/m.m00;
+                                point.z = 0.0;
+                                detected_points.points.push_back(point);
                                 //putText(cv_ptr->image, text, rect.center, FONT_HERSHEY_SIMPLEX, 2, Scalar(255,255,255),2);
                             }
                             else{
@@ -200,6 +212,7 @@ class BlimpTracker {
                                 circle(cv_ptr->image, Point(m.m10/m.m00, m.m01/m.m00), 3, Scalar(0,0,255), -1);
                                 point.x = m.m10/m.m00;
                                 point.y = m.m01/m.m00;
+                                point.z = 1.0;
                                 detected_points.points.push_back(point);
                             }
                         }

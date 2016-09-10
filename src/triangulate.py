@@ -169,58 +169,93 @@ class Triangulator:
             beta = np.arctan2(rect_r[1,0],rect_r[2,0])
             psi_beta_list_right.append((psi,beta,point.z))
 
-        #psi_beta_list_left = sorted(psi_beta_list_left, key=itemgetter(2), reverse=True)
-        #psi_beta_list_right = sorted(psi_beta_list_right, key=itemgetter(2), reverse=True)
+        psi_beta_list_left = sorted(psi_beta_list_left, key=itemgetter(2), reverse=True)
+        psi_beta_list_right = sorted(psi_beta_list_right, key=itemgetter(2), reverse=True)
         
         i=0
+        j=0
         found = False
         while not found:
-            #z1=psi_beta_list_left[i][2]
-            #z2=psi_beta_list_right[j][2]
-            #if z1 == 0 and z2 == 0:
-            #    rospy.loginfo("No match")
-            #    if self.tracker:
-            #        if self.tracker.updateNotFound() >= 15:
-            #            rospy.loginfo("Lost!")
-            #            self.tracker = None
-            #    break       # 0 should not be matched with zero, just end
-            #if z1 < z2:     # right camera has better membership value
+            z1=psi_beta_list_left[i][2]
+            z2=psi_beta_list_right[j][2]
+            if z1 == 0 and z2 == 0:
+                rospy.loginfo("No match")
+                if self.tracker:
+                    if self.tracker.updateNotFound() >= 15:
+                        rospy.loginfo("Lost!")
+                        self.tracker = None
+                break       # 0 should not be matched with zero, just end
+            if z1 < z2:     # right camera has better membership value
                 #rospy.loginfo("j = %d, %f", j, z2)
-                
-                #rospy.loginfo("i = %d, %f", i, z1)
-            (psi1,beta1,z1) = psi_beta_list_left[i]
-            for (psi2,beta2,z2) in psi_beta_list_right:
-                if abs(beta1-beta2) < 0.06:     # On the same epipolar line
-                    if psi1 <= psi2:
-                        # In the stereo vision, psi1 must be more than psi2 for the same object
-                        continue
-                    rho = baseline*np.cos(psi2)/np.sin(psi1-psi2)
-                    if rho > 10:
-                        # 15 meters away from the camera, that is impossible and would be a misdetection
-                        continue
-                    x_out = rho*np.sin(psi1)
-                    y_out = rho*np.cos(psi1)*np.sin(beta1)
-                    z_out = rho*np.cos(psi1)*np.cos(beta1)
-                    
-                    if not self.tracker:
-                        self.tracker = Tracker(x_out, y_out, z_out)
-                    else:
-                        self.tracker.predict()
-                        if self.tracker.distance((x_out, y_out, z_out)) > 0.36:
+                (psi2,beta2,z2) = psi_beta_list_right[j]
+                for (psi1,beta1,z1) in psi_beta_list_left:
+                    if abs(beta1-beta2) < 0.06:     # On the same epipolar line
+                        if psi1 <= psi2:
+                            # In the stereo vision, psi1 must be more than psi2 for the same object
                             continue
-                        self.tracker.updateTrack((x_out, y_out, z_out))
-                    
-                    self.broadcaster.sendTransform(self.tracker.pos,
-                                                    tf.transformations.quaternion_from_euler(0,0,0),
-                                                    rospy.Time.now(),
-                                                    '/blimp',
-                                                    '/world')
-                    found = True
-                    break
-            else:
-                # Arriving here means there is no match, increase index of right camera
-                i += 1
-            if i >= len(psi_beta_list_left):
+                        rho = baseline*np.cos(psi2)/np.sin(psi1-psi2)
+                        if rho > 10:
+                            # 15 meters away from the camera, that is impossible and would be a misdetection
+                            continue
+                        x_out = rho*np.sin(psi1)
+                        y_out = rho*np.cos(psi1)*np.sin(beta1)
+                        z_out = rho*np.cos(psi1)*np.cos(beta1)
+                        
+                        if not self.tracker:
+                            self.tracker = Tracker(x_out, y_out, z_out)
+                        else:
+                            self.tracker.predict()
+                            if self.tracker.distance((x_out, y_out, z_out)) > 0.36:
+                                continue
+                            self.tracker.updateTrack((x_out, y_out, z_out))
+                        
+                        self.broadcaster.sendTransform(self.tracker.pos,
+                                                        tf.transformations.quaternion_from_euler(0,0,0),
+                                                        rospy.Time.now(),
+                                                        '/blimp',
+                                                        '/world')
+                        print z1, z2
+                        found = True
+                        break
+                else:
+                    # Arriving here means there is no match, increase index of right camera
+                    j += 1
+            else:           # left camera has better membership value
+                #rospy.loginfo("i = %d, %f", i, z1)
+                (psi1,beta1,z1) = psi_beta_list_left[i]
+                for (psi2,beta2,z2) in psi_beta_list_right:
+                    if abs(beta1-beta2) < 0.06:     # On the same epipolar line
+                        if psi1 <= psi2:
+                            # In the stereo vision, psi1 must be more than psi2 for the same object
+                            continue
+                        rho = baseline*np.cos(psi2)/np.sin(psi1-psi2)
+                        if rho > 10:
+                            # 15 meters away from the camera, that is impossible and would be a misdetection
+                            continue
+                        x_out = rho*np.sin(psi1)
+                        y_out = rho*np.cos(psi1)*np.sin(beta1)
+                        z_out = rho*np.cos(psi1)*np.cos(beta1)
+                        
+                        if not self.tracker:
+                            self.tracker = Tracker(x_out, y_out, z_out)
+                        else:
+                            self.tracker.predict()
+                            if self.tracker.distance((x_out, y_out, z_out)) > 0.36:
+                                continue
+                            self.tracker.updateTrack((x_out, y_out, z_out))
+                        
+                        self.broadcaster.sendTransform(self.tracker.pos,
+                                                        tf.transformations.quaternion_from_euler(0,0,0),
+                                                        rospy.Time.now(),
+                                                        '/blimp',
+                                                        '/world')
+                        print z1, z2
+                        found = True
+                        break
+                else:
+                    # Arriving here means there is no match, increase index of right camera
+                    i += 1
+            if i >= len(psi_beta_list_left) or j >= len(psi_beta_list_right):
                 rospy.loginfo("No match")
                 if self.tracker:
                     if self.tracker.updateNotFound() >= 15:
@@ -230,7 +265,7 @@ class Triangulator:
                 
         if self.tracker:
             try:
-                data = "%.9f,%.3f,%.3f,%.3f,%d,%.3f,%.3f" % (t-self.start, self.tracker.pos[0], self.tracker.pos[1], self.tracker.pos[2], self.tracker.isTracked, 0, 0)
+                data = "%.9f,%.3f,%.3f,%.3f,%d,%.3f,%.3f" % (t-self.start, self.tracker.pos[0], self.tracker.pos[1], self.tracker.pos[2], self.tracker.isTracked, z1, z2)
                 self.writer.writerow(data.split(','))
             except csv.Error as e:
                 sys.exit('File %s, line %d: %s' % (self.file_name, self.writer.line_num, e))
