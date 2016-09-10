@@ -87,17 +87,38 @@ class Triangulator:
         self.baseline = baseline
         self.p1_sub = message_filters.Subscriber("/cam_left/blimp_center", PolygonStamped)
         self.p2_sub = message_filters.Subscriber("/cam_right/blimp_center", PolygonStamped)
-        self.sync = message_filters.ApproximateTimeSynchronizer([self.p1_sub, self.p2_sub], 10, 1)
+        self.sync = message_filters.ApproximateTimeSynchronizer([self.p1_sub, self.p2_sub], 10, 0.067)
         self.sync.registerCallback(self.triangulateCallback)
         self.broadcaster = tf.TransformBroadcaster()
         
         
     def triangulateCallback(self, p_left, p_right):
-        if len(p_left.polygon.points) == 0 or len(p_right.polygon.points) == 0:
-            return
         t = p_left.header.stamp.to_time()
         if self.start == 0:
             self.start = t
+        if len(p_left.polygon.points) == 0 or len(p_right.polygon.points) == 0:
+            if self.tracker:
+                if self.tracker.updateNotFound() >= 15:
+                    rospy.loginfo("Lost!")
+                    self.tracker = None
+                    try:
+                        data = "%.9f,%.3f,%.3f,%.3f,%d,%.3f,%.3f" % (t-self.start, 0, 0, 0, 0, 0, 0)
+                        self.writer.writerow(data.split(','))
+                    except csv.Error as e:
+                        sys.exit('File %s, line %d: %s' % (self.file_name, self.writer.line_num, e))
+                else:
+                    try:
+                        data = "%.9f,%.3f,%.3f,%.3f,%d,%.3f,%.3f" % (t-self.start, self.tracker.pos[0], self.tracker.pos[1], self.tracker.pos[2], self.tracker.isTracked, 0, 0)
+                        self.writer.writerow(data.split(','))
+                    except csv.Error as e:
+                        sys.exit('File %s, line %d: %s' % (self.file_name, self.writer.line_num, e))
+            else:
+                try:
+                    data = "%.9f,%.3f,%.3f,%.3f,%d,%.3f,%.3f" % (t-self.start, 0, 0, 0, 0, 0, 0)
+                    self.writer.writerow(data.split(','))
+                except csv.Error as e:
+                    sys.exit('File %s, line %d: %s' % (self.file_name, self.writer.line_num, e))
+            return
         psi_beta_list_left = []
         psi_beta_list_right= []
         for point in p_left.polygon.points:
