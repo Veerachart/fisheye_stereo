@@ -3,7 +3,7 @@
 import rospy
 import numpy as np
 import cv2
-from geometry_msgs.msg import PolygonStamped, Point32
+from geometry_msgs.msg import PolygonStamped, Point32, Vector3Stamped
 import message_filters
 import tf
 import csv
@@ -87,12 +87,13 @@ class Triangulator:
         self.baseline = baseline
         self.p1_sub = message_filters.Subscriber("/cam_left/blimp_center", PolygonStamped)
         self.p2_sub = message_filters.Subscriber("/cam_right/blimp_center", PolygonStamped)
-        self.sync = message_filters.ApproximateTimeSynchronizer([self.p1_sub, self.p2_sub], 10, 0.067)
+        self.p3_sub = message_filters.Subscriber("/blimp/stabilizer", Vector3Stamped)
+        self.sync = message_filters.ApproximateTimeSynchronizer([self.p1_sub, self.p2_sub, self.p3_sub], 30, 0.067)
         self.sync.registerCallback(self.triangulateCallback)
         self.broadcaster = tf.TransformBroadcaster()
         
         
-    def triangulateCallback(self, p_left, p_right):
+    def triangulateCallback(self, p_left, p_right, stabilizer):
         t = p_left.header.stamp.to_time()
         if self.start == 0:
             self.start = t
@@ -210,7 +211,7 @@ class Triangulator:
                             self.tracker.updateTrack((x_out, y_out, z_out))
                         
                         self.broadcaster.sendTransform(self.tracker.pos,
-                                                        tf.transformations.quaternion_from_euler(0,0,0),
+                                                        tf.transformations.quaternion_from_euler(0,0,stabilizer.vector.z),
                                                         rospy.Time.now(),
                                                         '/blimp',
                                                         '/world')
@@ -245,7 +246,7 @@ class Triangulator:
                             self.tracker.updateTrack((x_out, y_out, z_out))
                         
                         self.broadcaster.sendTransform(self.tracker.pos,
-                                                        tf.transformations.quaternion_from_euler(0,0,0),
+                                                        tf.transformations.quaternion_from_euler(0,0,stabilizer.vector.z),
                                                         rospy.Time.now(),
                                                         '/blimp',
                                                         '/world')
