@@ -17,6 +17,9 @@
 #include "geometry_msgs/PolygonStamped.h"
 #include <Eigen/Core>
 #include <algorithm>
+#include <iostream>
+#include <fstream>
+#include <time.h>
 
 using namespace cv;
 using namespace Eigen;
@@ -59,6 +62,13 @@ class BlimpTracker {
     geometry_msgs::Polygon detected_points;
     geometry_msgs::Point32 point;
     
+    std::ofstream *logfile;
+    double t_zero;
+    
+    double f1,f2,f3;
+    
+    VideoWriter outputVideo;
+    
     public:
         BlimpTracker()
             : it_(nh_){
@@ -81,10 +91,36 @@ class BlimpTracker {
             bg_limit = 25;      // 1 s
             scale = 0.5;
             area_threshold = 2500;
+            
+            time_t now = time(0);
+            struct tm* timeinfo;
+            timeinfo = localtime(&now);
+            char buffer[80];
+            char videoName[80];
+            if (camera == "left") {
+                strftime(buffer,80,"/home/otalab/logdata/%Y%m%d-%H%M_left.csv", timeinfo);
+                strftime(videoName,80,"/home/otalab/logdata/%Y%m%d-%H%M_left.avi", timeinfo);
+            }
+            else if (camera == "right") {
+                strftime(buffer,80,"/home/otalab/logdata/%Y%m%d-%H%M_right.csv", timeinfo);
+                strftime(videoName,80,"/home/otalab/logdata/%Y%m%d-%H%M_right.avi", timeinfo);
+            }
+            logfile = new std::ofstream(buffer);
+            *logfile << "time,f1,f2,f3,ftot\n";
+            
+            outputVideo.open(videoName, CV_FOURCC('D','I','V','X'), 15, Size(1536, 1536), true);
+            if (!outputVideo.isOpened()) {
+                ROS_ERROR("Could not write video.");
+                return;
+            }
+            t_zero = ros::Time::now().toSec();
+            ROS_INFO("%f", t_zero);
+            t_zero = (int)(floor(t_zero/100.0)) * 100.0;
+            ROS_INFO("%f", t_zero);
         }
         
         void imageCallback (const sensor_msgs::Image::ConstPtr& msg) {
-            ros::Time begin = ros::Time::now();
+            double begin = ros::Time::now().toSec();
             detected_points = geometry_msgs::Polygon();
             cv_bridge::CvImagePtr cv_ptr;
             try
@@ -130,8 +166,8 @@ class BlimpTracker {
                     }
                     RotatedRect rect;
                     rect = minAreaRect(contours[i]);
-                    //Point2f rect_points[4];
-                    //rect.points(rect_points);
+                    Point2f rect_points[4];
+                    rect.points(rect_points);
                     
                     //Find saturation_mean
                     float sat;
@@ -163,11 +199,23 @@ class BlimpTracker {
                     if(rect.size.width/rect.size.height >= 0.85 && rect.size.width/rect.size.height <= 1.15){
                         // Almost a circle --> close to the center of the image
                         // --> fitted rectangle will probably have wrong angle
-                        drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
+                        drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 2, CV_AA);        // Draw in red
+                        for(int j = 0; j < 4; j++)
+                            line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),2,8);
                         Moments m = moments(contours[i]);
-                        membershipValue = areaFunction(area/rectArea) * saturationFunction(sat);
+                        f1 = -1;
+                        f2 = areaFunction(area/rectArea);
+                        f3 = saturationFunction(sat);
+                        membershipValue = (f2 + 0.5*f3)/1.5;
+                        //membershipValue = f2*f3;
                         sprintf(text, "%.2lf", membershipValue);
-                        putText(cv_ptr->image, text, Point(m.m10/m.m00, m.m01/m.m00), FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255),2);
+                        putText(cv_ptr->image, text, Point(m.m10/m.m00, m.m01/m.m00), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(0,0,0),2);
+                        sprintf(text, "%.2lf", f1);
+                        putText(cv_ptr->image, text, Point(m.m10/m.m00, m.m01/m.m00+30), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(0,0,255),2);
+                        sprintf(text, "%.2lf, %.2lf", f2, area/rectArea);
+                        putText(cv_ptr->image, text, Point(m.m10/m.m00, m.m01/m.m00+60), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(0,255,0),2);
+                        sprintf(text, "%.2lf, %.2lf", f3, sat);
+                        putText(cv_ptr->image, text, Point(m.m10/m.m00, m.m01/m.m00+90), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255,0,0),2);
                         circle(cv_ptr->image, Point(m.m10/m.m00, m.m01/m.m00), 3, Scalar(0,255,0), -1);
                         point.x = m.m10/m.m00;
                         point.y = m.m01/m.m00;
@@ -176,21 +224,38 @@ class BlimpTracker {
                     }
                     else{
                         double angle;
+                        
                         if(rect.size.width < rect.size.height)
-                            angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - 90.0 - rect.angle);
+                            angle = acos(fabs(((rect.center.x-u0)*cos((rect.angle-90.0)*PI/180.0) + (rect.center.y-v0)*sin((rect.angle-90.0)*PI/180.0))/sqrt(std::pow(rect.center.x-u0,2) + std::pow(rect.center.y-v0,2)))) * 180.0/PI;
+                            //angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - 90.0 - rect.angle);
                         else
-                            angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - rect.angle);
-                        drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 3, CV_AA);        // Draw in red
+                            angle = acos(fabs(((rect.center.x-u0)*cos(rect.angle*PI/180.0) + (rect.center.y-v0)*sin(rect.angle*PI/180.0))/sqrt(std::pow(rect.center.x-u0,2) + std::pow(rect.center.y-v0,2)))) * 180.0/PI;
+                            //angle = abs(atan2(rect.center.y-v0, rect.center.x-u0)*180.0/PI - rect.angle);
+                        drawContours(cv_ptr->image, contours, i, Scalar(0,0,255), 2, CV_AA);        // Draw in red
+                        for(int j = 0; j < 4; j++)
+                            line( cv_ptr->image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255),2,8);
                         Moments m = moments(contours[i]);
-                        membershipValue = angleFunction(angle) * areaFunction(area/rectArea) * saturationFunction(sat);
+                        f1 = angleFunction(angle);
+                        f2 = areaFunction(area/rectArea);
+                        f3 = saturationFunction(sat);
+                        membershipValue = (f1 + 0.5*f2 + f3)/2.5;
+                        //membershipValue = f1*f2*f3;
                         sprintf(text, "%.2lf", membershipValue);
-                        putText(cv_ptr->image, text, Point(m.m10/m.m00, m.m01/m.m00), FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255),2);
+                        putText(cv_ptr->image, text, Point(m.m10/m.m00, m.m01/m.m00), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(0,0,0),2);
+                        sprintf(text, "%.2lf, %.2lf", f1, angle);
+                        putText(cv_ptr->image, text, Point(m.m10/m.m00, m.m01/m.m00+30), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(0,0,255),2);
+                        sprintf(text, "%.2lf, %.2lf", f2, area/rectArea);
+                        putText(cv_ptr->image, text, Point(m.m10/m.m00, m.m01/m.m00+60), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(0,255,0),2);
+                        sprintf(text, "%.2lf, %.2lf", f3, sat);
+                        putText(cv_ptr->image, text, Point(m.m10/m.m00, m.m01/m.m00+90), FONT_HERSHEY_SIMPLEX, 0.8, Scalar(255,0,0),2);
                         circle(cv_ptr->image, Point(m.m10/m.m00, m.m01/m.m00), 3, Scalar(0,255,0), -1);
                         point.x = m.m10/m.m00;
                         point.y = m.m01/m.m00;
                         point.z = (float)membershipValue;
                         detected_points.points.push_back(point);
                     }
+                    
+                    *logfile << begin-t_zero << "," << f1 << "," << f2 << "," << f3 << "," << membershipValue << "\n";
                     
 /*                    if(ellipseRect.size.width/ellipseRect.size.height >= 0.85 && ellipseRect.size.width/ellipseRect.size.height <= 1.15){
                         membershipValue = areaFunction(area/(ellipseRect.size.width*ellipseRect.size.height)) * saturationFunction(sat);
@@ -213,15 +278,19 @@ class BlimpTracker {
                     }*/
                 }
             }
+            char text[50];
+            sprintf(text, "%.6lf", begin-t_zero);
+            putText(cv_ptr->image, text, Point(10, 30), FONT_HERSHEY_SIMPLEX, 1, Scalar(255,255,255),2);
             //resize(foreground, show, Size(), scale, scale);
             //resize(cv_ptr->image, contour_show, Size(), scale, scale);
             //imshow("Foreground", show);
             //imshow("contours", contour_show);
+            outputVideo << cv_ptr->image;
             image_pub_.publish(cv_ptr->toImageMsg());
             polygon.header.stamp = ros::Time::now();
             polygon.polygon = detected_points;
             center_pub_.publish(polygon);
-            double loop_time = (ros::Time::now() - begin).toSec();
+            double loop_time = ros::Time::now().toSec() - begin;
             ROS_INFO("%.6f", loop_time);
             //waitKey(1);
         }

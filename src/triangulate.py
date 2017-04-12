@@ -28,6 +28,7 @@ class Tracker:
     def updateTrack(self, detected):
         self.predict()
         dis = self.distance(detected)
+        self.frameSinceLastTrack = 0
             
         # Within range
         if self.isTracked:
@@ -63,9 +64,9 @@ class Tracker:
         
         
     def predict(self):
-        self.predicted_pos = (self.pos[0] + (self.pos[0]-self.prev_pos[0])/2., \
-                              self.pos[1] + (self.pos[1]-self.prev_pos[1])/2., \
-                              self.pos[2] + (self.pos[2]-self.prev_pos[2])/2.)
+        self.predicted_pos = (self.pos[0] + (self.pos[0]-self.prev_pos[0]), \
+                              self.pos[1] + (self.pos[1]-self.prev_pos[1]), \
+                              self.pos[2] + (self.pos[2]-self.prev_pos[2]))
 
 
 coeffs1 = [-0.001235, 0, 0.001223, 0, -0.007934, 0, 0.017717, 0, 1.512327]
@@ -88,12 +89,13 @@ class Triangulator:
         self.p1_sub = message_filters.Subscriber("/cam_left/blimp_center", PolygonStamped)
         self.p2_sub = message_filters.Subscriber("/cam_right/blimp_center", PolygonStamped)
         self.p3_sub = message_filters.Subscriber("/blimp/stabilizer", Vector3Stamped)
-        self.sync = message_filters.ApproximateTimeSynchronizer([self.p1_sub, self.p2_sub, self.p3_sub], 30, 0.067)
+        self.sync = message_filters.ApproximateTimeSynchronizer([self.p1_sub, self.p2_sub, self.p3_sub], 5, 0.067)
         self.sync.registerCallback(self.triangulateCallback)
         self.broadcaster = tf.TransformBroadcaster()
         
         
     def triangulateCallback(self, p_left, p_right, stabilizer):
+        rospy.loginfo("Synced")
         t = p_left.header.stamp.to_time()
         if self.start == 0:
             self.start = t
@@ -179,7 +181,8 @@ class Triangulator:
         while not found:
             z1=psi_beta_list_left[i][2]
             z2=psi_beta_list_right[j][2]
-            if z1 == 0 and z2 == 0:
+            if z1 < 0.2 and z2 < 0.2:
+            #if z1 == 0 and z2 == 0:
                 rospy.loginfo("No match")
                 if self.tracker:
                     if self.tracker.updateNotFound() >= 15:
@@ -202,6 +205,14 @@ class Triangulator:
                         y_out = rho*np.cos(psi1)*np.sin(beta1)
                         z_out = rho*np.cos(psi1)*np.cos(beta1)
                         
+                        # Limited by the area
+                        if z_out < 0 or z_out > 3.5:
+                            continue
+                        if x_out < -5 or x_out > 5:
+                            continue
+                        if y_out < -2.5 or y_out > 2.5:
+                            continue
+                        
                         if not self.tracker:
                             self.tracker = Tracker(x_out, y_out, z_out)
                         else:
@@ -211,7 +222,7 @@ class Triangulator:
                             self.tracker.updateTrack((x_out, y_out, z_out))
                         
                         self.broadcaster.sendTransform(self.tracker.pos,
-                                                        tf.transformations.quaternion_from_euler(0,0,stabilizer.vector.z),
+                                                        tf.transformations.quaternion_from_euler(0,0,-stabilizer.vector.z),
                                                         rospy.Time.now(),
                                                         '/blimp',
                                                         '/world')
@@ -237,6 +248,14 @@ class Triangulator:
                         y_out = rho*np.cos(psi1)*np.sin(beta1)
                         z_out = rho*np.cos(psi1)*np.cos(beta1)
                         
+                        # Limited by the area
+                        if z_out < 0 or z_out > 3.5:
+                            continue
+                        if x_out < -5 or x_out > 5:
+                            continue
+                        if y_out < -2.5 or y_out > 2.5:
+                            continue
+                        
                         if not self.tracker:
                             self.tracker = Tracker(x_out, y_out, z_out)
                         else:
@@ -246,7 +265,7 @@ class Triangulator:
                             self.tracker.updateTrack((x_out, y_out, z_out))
                         
                         self.broadcaster.sendTransform(self.tracker.pos,
-                                                        tf.transformations.quaternion_from_euler(0,0,stabilizer.vector.z),
+                                                        tf.transformations.quaternion_from_euler(0,0,-stabilizer.vector.z),
                                                         rospy.Time.now(),
                                                         '/blimp',
                                                         '/world')
