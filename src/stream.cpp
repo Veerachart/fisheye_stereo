@@ -47,39 +47,44 @@ public:
     {
         std::string camera = nh_.resolveName("camera");
         if(camera == "/left"){
-            videoStreamAddress = std::string("rtsp://192.168.11.65/live2.sdp");
+            videoStreamAddress = std::string("rtsp://192.168.11.85/live3.sdp");
             image_pub_ = it_.advertise("/cam_left/rectified_video", 1);
             raw_pub_ = it_.advertise("/cam_left/raw_video", 1);
-            R << 0.998937, 0.035785, -0.030509, -0.035785, 0.999359, 0.000546, 0.030509, 0.000546, 0.999534;
-            coeffs[0] = 1.512327;
-            coeffs[1] = 0.017717;
-            coeffs[2] = -0.007934;
-            coeffs[3] = 0.001223;
-            coeffs[4] = -0.001235;
-            mu = 321.3991;
-            mv = 321.4652;
-            u0 = 761.98;
-            v0 = 772.98;
+            R << 0.999601,  0.027689,  -0.004448, -0.027689,  0.999617, 0.000062, 0.004448,  0.000062,  0.999990;
+            //R << 0.999992,  -0.003900, 0.000638, 0.003900,  0.999992, -0.000001,  -0.000638,  0.000001,  1.000000;
+            //R << 0.998937, 0.035785, -0.030509, -0.035785, 0.999359, 0.000546, 0.030509, 0.000546, 0.999534;
+            coeffs[0] = 1.492357;
+            coeffs[1] = 0.013237;
+            coeffs[2] = 0.007671;
+            coeffs[3] = 0.001029;
+            coeffs[4] = -0.003125;
+            mu = 157.1979;
+            mv = 157.1979;
+            u0 = 385.21;
+            v0 = 385.21;
         }
         else if(camera == "/right" ){
-            videoStreamAddress = std::string("rtsp://192.168.11.79/live2.sdp");
+            videoStreamAddress = std::string("rtsp://192.168.11.95/live3.sdp");
             image_pub_ = it_.advertise("/cam_right/rectified_video", 1);
             raw_pub_ = it_.advertise("/cam_right/raw_video", 1);
-            R << 0.999744, 0.019123, -0.012076, -0.019195, 0.999798, -0.005883, 0.011961, 0.006114, 0.999910;
-            coeffs[0] = 1.499236;
-            coeffs[1] = 0.045662;
-            coeffs[2] = -0.033468;
-            coeffs[3] = 0.010240;
-            coeffs[4] = -0.001877;
-            mu = 321.3305;
-            mv = 321.2910;
-            u0 = 760.76;
-            v0 = 770.55;
+            //R << 0.998324,  0.023180,  0.053027, -0.024059,  0.999583, 0.015998, -0.052634,  -0.017247,  0.998465;
+            R << 0.997059,  -0.075636, 0.012355, 0.075567,  0.997123, 0.005980,  -0.012772,  -0.005029,  0.999906;
+            //R << 0.999744, 0.019123, -0.012076, -0.019195, 0.999798, -0.005883, 0.011961, 0.006114, 0.999910;
+            coeffs[0] = 1.495884;
+            coeffs[1] = 0.017052;
+            coeffs[2] = 0.017052;
+            coeffs[3] = 0.002062;
+            coeffs[4] = -0.003934;
+            mu = 156.4238;
+            mv = 156.4208;
+            u0 = 385.14;
+            v0 = 385.32;
         }
         else{
             // Use default: left camera
             ROS_WARN("Wrong assignment to left or right camera --- use configuration for left camera");
-            videoStreamAddress = std::string("rtsp://192.168.11.79/live2.sdp");
+            //videoStreamAddress = std::string("rtsp://192.168.11.85/live2.sdp");
+            videoStreamAddress = std::string("/home/otalab/Videos/fps_test.mp4");
             image_pub_ = it_.advertise("/cam_left/rectified_video", 1);
             raw_pub_ = it_.advertise("/cam_left/raw_video", 1);
         }
@@ -157,6 +162,7 @@ public:
         }
     }
     
+    
     ~StreamRectifier()
     {
         vcap.release();
@@ -170,21 +176,20 @@ int main(int argc, char **argv){
     if (cam_arg == "camera") {
         ROS_WARN("Selection 'camera' has not been remapped! Typical command-line usage:\n"
              "\t$ rosrun fisheye_stereo stream camera:=<left or right>");
-        return -1;
+        //return -1;
     }
     else if ( (cam_arg != "/left") && (cam_arg != "/right") ){
         ROS_WARN("Selection 'camera' has been incorrectly remapped! Typical command-line usage:\n"
              "\t$ rosrun fisheye_stereo stream camera:=<left or right>");
-        return -1;
+        //return -1;
     }
     ros::start();
-    ros::Rate loop_rate(15);
+    ros::Rate loop_rate(25);
     StreamRectifier * streamer = new (std::nothrow) StreamRectifier;
 
     while(ros::ok()) {
         streamer->stream();
         loop_rate.sleep();
-
     }
     delete streamer;
 }
