@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+
+<launch>
+    <node name="tracker_left" pkg="fisheye_stereo" type="blimp_marker" output="screen">
+        <remap from="camera" to="left"/>
+    </node>
+    <node name="tracker_right" pkg="fisheye_stereo" type="blimp_marker" output="screen">
+        <remap from="camera" to="right"/>
+    </node>
+    <node name="triangulate" pkg="fisheye_stereo" type="triangulate_kalman.py" output="screen" required="true"> </node>
+    
+    <!--<group ns="blimp">
+        <node name="stabilizer_publisher" pkg="blimp_controller" type="stabilizer_pub"></node>
+    </group>-->
+</launch>
