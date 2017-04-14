@@ -90,7 +90,6 @@ m2 = (mu2+mv2)/2.
 class Triangulator:
     def __init__(self, baseline = 1):
         self.tracker = None
-        self.start = 0
         self.save = True
         if self.save:
             self.file_name = pathname+"/logdata/"+time.strftime("%Y%m%d-%H%M")+"_blimp.csv"
@@ -115,8 +114,6 @@ class Triangulator:
     def triangulateCallback(self, p_left, p_right):
         #rospy.loginfo("Synced")
         t = max(p_left.header.stamp.to_time(), p_right.header.stamp.to_time())
-        if self.start == 0:
-            self.start = t
         if (p_left.point.x == 0 and p_left.point.y == 0) or (p_right.point.x == 0 and p_right.point.y == 0):
 #            if self.tracker:
 #                if self.save:
@@ -303,7 +300,7 @@ class Triangulator:
                                            '/world')
             if self.save:
                 try:
-                    data = "%.6f,%.4f,%.4f,%.4f,%.2E,%.2E,%.2E,%.4f,%.4f,%.4f,%.6E,%.6E,%.6E,%.6E,%.6E,%.6E,%.6E,%.6E,%.6E" % (t-self.start, self.tracker.state[0], self.tracker.state[1], self.tracker.state[2], Decimal(self.tracker.state[3]), Decimal(self.tracker.state[4]), Decimal(self.tracker.state[5]), self.detection[1], self.detection[2], self.detection[3], Decimal(self.tracker.P[0,0]), Decimal(self.tracker.P[0,1]), Decimal(self.tracker.P[0,2]), Decimal(self.tracker.P[1,0]), Decimal(self.tracker.P[1,1]), Decimal(self.tracker.P[1,2]), Decimal(self.tracker.P[2,0]), Decimal(self.tracker.P[2,1]), Decimal(self.tracker.P[2,2]))
+                    data = "%.6f,%.4f,%.4f,%.4f,%.2E,%.2E,%.2E,%.4f,%.4f,%.4f,%.6E,%.6E,%.6E,%.6E,%.6E,%.6E,%.6E,%.6E,%.6E" % (t, self.tracker.state[0], self.tracker.state[1], self.tracker.state[2], Decimal(self.tracker.state[3]), Decimal(self.tracker.state[4]), Decimal(self.tracker.state[5]), self.detection[1], self.detection[2], self.detection[3], Decimal(self.tracker.P[0,0]), Decimal(self.tracker.P[0,1]), Decimal(self.tracker.P[0,2]), Decimal(self.tracker.P[1,0]), Decimal(self.tracker.P[1,1]), Decimal(self.tracker.P[1,2]), Decimal(self.tracker.P[2,0]), Decimal(self.tracker.P[2,1]), Decimal(self.tracker.P[2,2]))
                     self.writer.writerow(data.split(','))
                 except csv.Error as e:
                     sys.exit('File %s, line %d: %s' % (self.file_name, self.writer.line_num, e))
