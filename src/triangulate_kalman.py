@@ -101,8 +101,7 @@ class Triangulator:
         self.baseline = baseline
         self.p1_sub = message_filters.Subscriber("/cam_left/blimp_center", PointStamped)
         self.p2_sub = message_filters.Subscriber("/cam_right/blimp_center", PointStamped)
-        self.p3_sub = message_filters.Subscriber("/blimp/stabilizer", Vector3Stamped)
-        self.sync = message_filters.ApproximateTimeSynchronizer([self.p1_sub, self.p2_sub, self.p3_sub], 3, 0.04)
+        self.sync = message_filters.ApproximateTimeSynchronizer([self.p1_sub, self.p2_sub], 3, 0.04)
         self.sync.registerCallback(self.triangulateCallback)
         self.broadcaster = tf.TransformBroadcaster()
         
@@ -110,14 +109,12 @@ class Triangulator:
         
         self.detection = None
         self.cov_detect = None
-        self.yaw = None
         self.newDetection = False
         
         
-    def triangulateCallback(self, p_left, p_right, stabilizer):
+    def triangulateCallback(self, p_left, p_right):
         #rospy.loginfo("Synced")
         t = max(p_left.header.stamp.to_time(), p_right.header.stamp.to_time())
-        self.yaw = -stabilizer.vector.z
         if self.start == 0:
             self.start = t
         if (p_left.point.x == 0 and p_left.point.y == 0) or (p_right.point.x == 0 and p_right.point.y == 0):
@@ -300,7 +297,7 @@ class Triangulator:
             if self.newDetection:
                 self.tracker.updateCorrection(self.detection, self.cov_detect)
             self.broadcaster.sendTransform((self.tracker.state[0],self.tracker.state[1],self.tracker.state[2]),
-                                           tf.transformations.quaternion_from_euler(0,0,self.yaw),
+                                           tf.transformations.quaternion_from_euler(0,0,0),
                                            rospy.Time.now(),
                                            '/blimp',
                                            '/world')
