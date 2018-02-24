@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+
+<launch>
+    <node name="tracker_left" pkg="fisheye_stereo" type="mog_detector" output="screen">
+        <remap from="camera" to="left"/>
+        <remap from="save_video" to="true"/>
+    </node>
+    <node name="tracker_right" pkg="fisheye_stereo" type="mog_detector" output="screen">
+        <remap from="camera" to="right"/>
+        <remap from="save_video" to="true"/>
+    </node>
+    <node name="triangulate" pkg="fisheye_stereo" type="triangulate_kalman.py" required="true"> </node>
+    <node name="human_triangulate" pkg="fisheye_stereo" type="human_triangulate.py" output="screen" required="true"> </node>
+    
+    <!--<group ns="blimp">
+        <node name="stabilizer_publisher" pkg="blimp_controller" type="stabilizer_pub"></node>
+    </group>-->
+</launch>
