@@ -18,20 +18,20 @@ int main(int argc, char **argv){
     ros::init(argc, argv, "file_streamer",ros::init_options::AnonymousName);
     
     ros::start();
-    ros::Rate loop_rate(15);
+    ros::Rate loop_rate(10);
     
     VideoCapture player1;
     VideoCapture player2;
     
-    if(!player1.open("/home/otalab/catkin_ws/src/fisheye_stereo/Exp_left.mp4") || !player2.open("/home/otalab/catkin_ws/src/fisheye_stereo/Exp_right.mp4")){
-        std::cout << "Error opening video stream 1" << std::endl;
+    if(!player1.open("/home/veerachart/Videos/CLIP_20170915-215436_left.mp4") || !player2.open("/home/veerachart/Videos/CLIP_20170915-215424_right.mp4")){
+        std::cout << "Error opening video stream" << std::endl;
         return -1;
     }
     
     Mat frame1, frame2;
     
-    player1.set(CV_CAP_PROP_POS_MSEC, 15930);
-    player2.set(CV_CAP_PROP_POS_MSEC, 11570);
+    player1.set(CV_CAP_PROP_POS_MSEC, 229050);
+    player2.set(CV_CAP_PROP_POS_MSEC, 227000);
     
     ros::NodeHandle nh;
     image_transport::ImageTransport it(nh);

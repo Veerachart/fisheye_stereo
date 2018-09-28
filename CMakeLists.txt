@@ -140,13 +140,13 @@ include_directories(
 add_executable(stream src/stream.cpp)
 add_executable(triangulate src/triangulate.cpp)
 add_executable(blimp_tracker src/blimp_detect.cpp)
-add_executable(blimp_human_tracker src/blimp_human_detect.cpp)
+#add_executable(blimp_human_tracker src/blimp_human_detect.cpp)
 add_executable(blimp_marker src/blimp_marker.cpp)
 add_executable(stream_file src/stream_file.cpp)
-add_executable(video_stream src/video_stream.cpp)
-add_executable(perspective_mapper src/perspective_mapper.cpp)
-add_executable(human_detector src/human_detect.cpp)
-add_executable(color_detector src/color_detect.cpp)
+#add_executable(video_stream src/video_stream.cpp)
+#add_executable(perspective_mapper src/perspective_mapper.cpp)
+#add_executable(human_detector src/human_detect.cpp)
+#add_executable(color_detector src/color_detect.cpp)
 add_executable(mog_detector src/MOG.cpp)
 
 ## Add cmake target dependencies of the executable
@@ -165,10 +165,10 @@ target_link_libraries(blimp_tracker
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
 )
-target_link_libraries(blimp_human_tracker
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-)
+#target_link_libraries(blimp_human_tracker
+#  ${catkin_LIBRARIES}
+#  ${OpenCV_LIBRARIES}
+#)
 target_link_libraries(blimp_marker
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
@@ -177,22 +177,22 @@ target_link_libraries(stream_file
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
 )
-target_link_libraries(video_stream
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-)
-target_link_libraries(perspective_mapper
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-)
-target_link_libraries(human_detector
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-)
-target_link_libraries(color_detector
-  ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-)
+#target_link_libraries(video_stream
+#  ${catkin_LIBRARIES}
+#  ${OpenCV_LIBRARIES}
+#)
+#target_link_libraries(perspective_mapper
+#  ${catkin_LIBRARIES}
+#  ${OpenCV_LIBRARIES}
+#)
+#target_link_libraries(human_detector
+#  ${catkin_LIBRARIES}
+#  ${OpenCV_LIBRARIES}
+#)
+#target_link_libraries(color_detector
+#  ${catkin_LIBRARIES}
+#  ${OpenCV_LIBRARIES}
+#)
 target_link_libraries(mog_detector
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}

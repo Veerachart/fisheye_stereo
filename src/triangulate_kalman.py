@@ -229,7 +229,7 @@ class Triangulator:
                     var_combi[0:2,0:2] = var_beta_psi1
                     var_combi[2:,2:] = var_beta_psi2
                     
-                    J_p = np.zeros((3,4))
+                    J_p -= np.zeros((3,4))
                     temp = -baseline*(np.array([[c_psi2*(-s_psi*np.cos(disparity)/(np.sin(disparity)**2) + c_psi/np.sin(disparity))],
                                                 [-c_psi2*s_beta*(c_psi*np.cos(disparity)/(np.sin(disparity)**2) + s_psi/np.sin(disparity))],
                                                 [-c_psi2*c_beta*(c_psi*np.cos(disparity)/(np.sin(disparity)**2) + s_psi/np.sin(disparity))]]))
